@@ -47,3 +47,52 @@ El backend está organizado en módulos que separan las funcionalidades de auten
 ## Licencia
 
 Este proyecto se distribuye bajo la Licencia MIT.
+
+## Deployment
+
+Cuando estés listo para implementar tu aplicación NestJS en producción, hay algunos pasos clave que puedes seguir para asegurarte de que funcione de la manera más eficiente posible. Consulta la documentación de implementación para obtener más información.
+
+Si buscas una plataforma en la nube para implementar tu aplicación NestJS, visita Mau, nuestra plataforma oficial para desplegar aplicaciones NestJS en AWS. Mau hace que el despliegue sea sencillo y rápido, requiriendo solo unos pocos pasos simples:
+
+```bash
+$ npm install -g mau
+$ mau deploy
+```
+
+Con Mau, puedes desplegar tu aplicación en solo unos pocos clics, permitiéndote concentrarte en desarrollar funcionalidades en lugar de gestionar la infraestructura.
+
+## Description
+
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+
+## Project setup
+
+```bash
+$ npm install
+```
+
+## Compile and run the project
+
+```bash
+# development
+$ npm run start
+
+# watch mode
+$ npm run start:dev
+
+# production mode
+$ npm run start:prod
+```
+
+## Run tests
+
+```bash
+# unit tests
+$ npm run test
+
+# e2e tests
+$ npm run test:e2e
+
+# test coverage
+$ npm run test:cov
+```
