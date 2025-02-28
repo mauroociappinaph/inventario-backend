@@ -10,6 +10,8 @@ Este repositorio alberga la API REST del Sistema de Control de Inventario. La ap
 - **MongoDB y Mongoose:** Para la gestión de datos y el manejo de esquemas.
 - **JWT y Passport:** Para la autenticación de usuarios y protección de rutas sensibles.
 - **Jest:** Para la implementación de pruebas unitarias que garanticen la calidad del código.
+- **@nestjs/config (opcional):** Para la gestión organizada de las variables de entorno.
+- **Nodemon:** Para reiniciar automáticamente la aplicación durante el desarrollo.
 - **Git:** Para el control de versiones con una estrategia basada en ramas.
 
 ## Características del Backend
@@ -28,7 +30,7 @@ El backend está organizado en módulos que separan las funcionalidades de auten
 
 - Se deben instalar todas las dependencias necesarias para ejecutar el proyecto.
 - Se utiliza un archivo de configuración para definir las variables de entorno esenciales (por ejemplo, la conexión a MongoDB y el secreto para JWT).
-- El servidor se ejecuta en modo de desarrollo para facilitar las pruebas y la integración de nuevas funcionalidades.
+- El servidor se ejecuta en modo de desarrollo para facilitar las pruebas y la integración de nuevas funcionalidades, utilizando Nodemon para reiniciar automáticamente la aplicación ante cualquier cambio.
 - Se recomienda el uso de pruebas unitarias para cada módulo, asegurando la estabilidad y calidad de la API.
 
 ## Despliegue
