@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model , Types } from 'mongoose';
 import { Product, ProductDocument } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -13,7 +13,7 @@ export class ProductsService {
   ) {}
 
   // Crea un nuevo producto a partir de los datos del DTO.
-  async create(createProductDto: CreateProductDto): Promise<Product> {
+  async create(createProductDto: CreateProductDto & { userId: Types.ObjectId }): Promise<Product> {
     const newProduct = new this.productModel(createProductDto);
     return newProduct.save();
   }

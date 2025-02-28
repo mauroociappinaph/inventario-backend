@@ -1,5 +1,7 @@
+import { Types } from 'mongoose';
+
 // Define la estructura de datos necesaria para crear un nuevo producto.
-// Estos campos corresponden a los definidos en el esquema.
+// Estos campos corresponden a los definidos en el esquema.`
 export class CreateProductDto {
   // Nombre del producto (requerido)
   readonly name: string;
@@ -24,4 +26,7 @@ export class CreateProductDto {
 
   // Subcategoría del producto (opcional)
   readonly subCategory?: string;
+
+  // ID del usuario que crea el producto (requerido)
+  readonly userId: Types.ObjectId;
 }

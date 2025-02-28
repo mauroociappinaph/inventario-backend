@@ -4,41 +4,46 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
+import { Types } from 'mongoose';
+// Extiende la interfaz Request de Express para incluir la propiedad `user`
+interface AuthenticatedRequest extends Request {
+  user: { userId: Types.ObjectId }; // Define el tipo de `user`
+}
 
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  // Este endpoint solo puede ser accedido por usuarios autenticados.
-  // El guard 'JwtAuthGuard' verifica que el usuario tenga un token JWT válido.
+  // Solo usuarios autenticados pueden crear productos.
   @UseGuards(JwtAuthGuard)
   @Post()
-  async create(@Body() createProductDto: CreateProductDto, @Req() req: Request) {
-    // Opcional: puedes extraer información del usuario autenticado desde req.user
-    // Por ejemplo: const user = req.user;
-    return this.productsService.create(createProductDto);
+  async create(@Body() createProductDto: CreateProductDto, @Req() req: AuthenticatedRequest) {
+    // Extrae el usuario autenticado (lo que se devolvió en JwtStrategy)
+    const user = req.user; // No es necesario el type assertion ahora
+    // Pasa el ID del usuario al DTO o directamente al servicio para asociar el producto.
+    return this.productsService.create({
+      ...createProductDto,
+        userId: new Types.ObjectId(user.userId), // Convert the string to ObjectId
+    });
   }
 
-  // Este endpoint es público y permite listar todos los productos.
+  // Los demás endpoints permanecen igual...
   @Get()
   async findAll() {
     return this.productsService.findAll();
   }
 
-  // Este endpoint es público y permite obtener un producto por su ID.
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
   }
 
-  // Para actualizar un producto, el usuario debe estar autenticado.
   @UseGuards(JwtAuthGuard)
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
     return this.productsService.update(id, updateProductDto);
   }
 
-  // Para eliminar un producto, el usuario debe estar autenticado.
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id') id: string) {
