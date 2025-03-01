@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 // Definimos el tipo de documento para TypeScript
 export type ProductDocument = Product & Document;
@@ -14,6 +14,10 @@ export class Product {
   @Prop()
   description: string;
 
+  // Código de barras o SKU, opcional pero único si existe
+  @Prop({ unique: true, sparse: true })
+  barcode: string;
+
   // Precio del producto, requerido y no negativo.
   @Prop({
     required: true,
@@ -21,9 +25,16 @@ export class Product {
   })
   price: number;
 
+  // Stock mínimo para alertas
+  @Prop({ default: 0 })
+  minStock: number;
+
+  // URL de la imagen del producto
+  @Prop()
+  imageUrl: string;
 
   // Fecha de ingreso del producto, requerido.
-  @Prop({ required: true })
+  @Prop({ required: true, default: Date.now })
   entryDate: Date;
 
   // Fecha de caducidad del producto, opcional.
@@ -40,13 +51,33 @@ export class Product {
   })
   expirationDate: Date;
 
-  // Categoría del producto, opcional.
+  // Referencia a la categoría
+  @Prop({ type: Types.ObjectId, ref: 'Category' })
+  categoryId: Types.ObjectId;
+
+  // Nombre de la categoría (redundante para facilitar búsquedas)
   @Prop()
   category: string;
 
   // Subcategoría del producto, opcional.
   @Prop()
   subCategory: string;
+
+  // Referencia al proveedor principal
+  @Prop({ type: Types.ObjectId, ref: 'Supplier' })
+  supplierId: Types.ObjectId;
+
+  // Nombre del proveedor (redundante para facilitar búsquedas)
+  @Prop()
+  supplier: string;
+
+  // Estado del producto: activo, inactivo, descontinuado
+  @Prop({ default: 'activo', enum: ['activo', 'inactivo', 'descontinuado'] })
+  status: string;
+
+  // Almacena la fecha de la última actualización de stock
+  @Prop()
+  lastStockUpdate: Date;
 }
 
 // Creamos el esquema de Mongoose a partir de la clase Product

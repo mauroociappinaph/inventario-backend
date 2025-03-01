@@ -11,7 +11,7 @@ import { randomUUID } from 'crypto';
 @Injectable()
 export class OrdersService {
   constructor(
-    @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
+    @InjectModel(Order.name) private readonly orderModel: Model<Order>,
     private readonly productsService: ProductsService,
     private readonly suppliersService: SuppliersService
   ) {}
