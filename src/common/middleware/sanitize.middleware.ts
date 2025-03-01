@@ -1,10 +1,16 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import * as xss from 'xss';
 
 @Injectable()
 export class SanitizeMiddleware implements NestMiddleware {
+  private readonly logger = new Logger(SanitizeMiddleware.name);
+
+  private readonly EXCLUDED_FIELDS = ['password', 'passwordConfirm', 'token'];
+
   use(req: Request, res: Response, next: NextFunction) {
+    this.logger.debug(`Sanitizando request para: ${req.method} ${req.url}`);
+
     // Sanitizar body
     if (req.body) {
       req.body = this.sanitizeData(req.body);
@@ -53,7 +59,12 @@ export class SanitizeMiddleware implements NestMiddleware {
 
       for (const key in data) {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
-          sanitizedData[key] = this.sanitizeData(data[key]);
+          // No aplicar sanitización a campos excluidos (ej: contraseñas)
+          if (this.EXCLUDED_FIELDS.includes(key)) {
+            sanitizedData[key] = data[key];
+          } else {
+            sanitizedData[key] = this.sanitizeData(data[key]);
+          }
         }
       }
 

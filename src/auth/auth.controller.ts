@@ -1,5 +1,5 @@
 import { Controller, Post, Body, UseGuards, HttpStatus, HttpCode, ValidationPipe, BadRequestException, UnauthorizedException, Logger } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthService, AuthResponse } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { LoginThrottlerGuard } from '../common/guards/throttle.guard';
@@ -23,6 +23,10 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'El correo electrónico ya existe' })
   async register(@Body(new ValidationPipe({ transform: true })) createUserDto: CreateUserDto) {
     try {
+      // Log de información recibida (sin contraseña)
+      const { password, ...userDataForLog } = createUserDto;
+      this.logger.log(`Datos recibidos para registro: ${JSON.stringify(userDataForLog)}`);
+
       // Llama al método register del servicio y devuelve el usuario creado.
       this.logger.log(`Intentando registrar usuario con email: ${createUserDto.email}`);
       const result = await this.authService.register(createUserDto);
@@ -35,11 +39,21 @@ export class AuthController {
     } catch (error) {
       this.logger.error(`Error al registrar usuario: ${error.message}`, error.stack);
 
-      if (error.code === 11000) {
+      // Error específico para correo electrónico duplicado
+      if (error.code === 11000 || error.message.includes('ya existe')) {
         throw new BadRequestException({
           statusCode: HttpStatus.CONFLICT,
           message: 'El correo electrónico ya está registrado',
           error: 'Conflict',
+        });
+      }
+
+      // Error de validación de contraseña
+      if (error.message.includes('contraseña') || error.message.includes('password')) {
+        throw new BadRequestException({
+          statusCode: HttpStatus.BAD_REQUEST,
+          message: 'La contraseña no cumple con los requisitos: debe tener al menos 6 caracteres, una mayúscula, una minúscula y un número o caracter especial',
+          error: 'Bad Request',
         });
       }
 
@@ -60,7 +74,11 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login exitoso' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
   @ApiResponse({ status: 403, description: 'Demasiados intentos de inicio de sesión' })
-  async login(@Body(new ValidationPipe({ transform: true })) loginUserDto: LoginUserDto) {
+  async login(@Body(new ValidationPipe({ transform: true })) loginUserDto: LoginUserDto): Promise<{
+    statusCode: number;
+    message: string;
+    data: AuthResponse;
+  }> {
     try {
       // Llama al método login del servicio y devuelve el token JWT.
       this.logger.log(`Intento de inicio de sesión para: ${loginUserDto.email}`);
