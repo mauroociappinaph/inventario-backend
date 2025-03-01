@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model , Types } from 'mongoose';
 import { Product, ProductDocument } from './schemas/product.schema';
@@ -14,43 +14,100 @@ export class ProductsService {
 
   // Crea un nuevo producto a partir de los datos del DTO.
   async create(createProductDto: CreateProductDto & { userId: Types.ObjectId }): Promise<Product> {
-    const newProduct = new this.productModel(createProductDto);
-    return newProduct.save();
+    try {
+      const newProduct = new this.productModel(createProductDto);
+      return await newProduct.save();
+    } catch (error) {
+      if (error.name === 'ValidationError') {
+        throw new BadRequestException('Datos del producto inválidos');
+      }
+      throw new InternalServerErrorException('Error al crear el producto');
+    }
   }
 
   // Obtiene todos los productos.
-  async findAll(): Promise<Product[]> {
-    return this.productModel.find().exec();
+  async findAll(page: number = 1, limit: number = 10): Promise<{products: Product[], total: number, pages: number}> {
+    try {
+      const skip = (page - 1) * limit;
+
+      const [products, total] = await Promise.all([
+        this.productModel.find()
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.productModel.countDocuments()
+      ]);
+
+      const pages = Math.ceil(total / limit);
+
+      return {
+        products,
+        total,
+        pages
+      };
+    } catch (error) {
+      throw new InternalServerErrorException('Error al obtener los productos');
+    }
   }
 
   // Obtiene un producto por su ID. Si no existe, lanza una excepción.
   async findOne(id: string): Promise<Product> {
-    const product = await this.productModel.findById(id).exec();
-    if (!product) {
-      throw new NotFoundException(`Producto con id ${id} no encontrado`);
+    try {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new BadRequestException('ID de producto inválido');
+      }
+      const product = await this.productModel.findById(id).exec();
+      if (!product) {
+        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+      }
+      return product;
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al buscar el producto');
     }
-    return product;
   }
 
   // Actualiza un producto existente. Si no se encuentra, lanza una excepción.
   async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
-    const updatedProduct = await this.productModel.findByIdAndUpdate(
-      id,
-      updateProductDto,
-      { new: true }
-    ).exec();
-    if (!updatedProduct) {
-      throw new NotFoundException(`Producto con id ${id} no encontrado`);
+    try {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new BadRequestException('ID de producto inválido');
+      }
+      const updatedProduct = await this.productModel.findByIdAndUpdate(
+        id,
+        updateProductDto,
+        { new: true }
+      ).exec();
+      if (!updatedProduct) {
+        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+      }
+      return updatedProduct;
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al actualizar el producto');
     }
-    return updatedProduct;
   }
 
   // Elimina un producto por su ID. Si no existe, lanza una excepción.
   async remove(id: string): Promise<Product> {
-  const deletedProduct = await this.productModel.findByIdAndDelete(id).exec();
-  if (!deletedProduct) {
-      throw new NotFoundException(`Producto con id ${id} no encontrado`);
+    try {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new BadRequestException('ID de producto inválido');
+      }
+      const deletedProduct = await this.productModel.findByIdAndDelete(id).exec();
+      if (!deletedProduct) {
+        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+      }
+      return deletedProduct;
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al eliminar el producto');
     }
-    return deletedProduct;
   }
 }

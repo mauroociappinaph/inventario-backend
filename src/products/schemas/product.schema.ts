@@ -21,23 +21,23 @@ export class Product {
   })
   price: number;
 
-  // Stock disponible, requerido, no negativo y debe ser entero.
-  @Prop({
-    required: true,
-    min: [0, 'El stock no puede ser negativo'],
-    validate: {
-      validator: Number.isInteger,
-      message: 'El stock debe ser un número entero'
-    }
-  })
-  stock: number;
 
   // Fecha de ingreso del producto, requerido.
   @Prop({ required: true })
   entryDate: Date;
 
   // Fecha de caducidad del producto, opcional.
-  @Prop()
+  @Prop({
+    validate: {
+      validator: function(expirationDate: Date) {
+        // Si no hay fecha de caducidad, se considera válido
+        if (!expirationDate) return true;
+        // Verifica que la fecha de caducidad sea posterior a la fecha de ingreso
+        return expirationDate > this.entryDate;
+      },
+      message: 'La fecha de caducidad debe ser posterior a la fecha de ingreso'
+    }
+  })
   expirationDate: Date;
 
   // Categoría del producto, opcional.
