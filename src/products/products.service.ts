@@ -4,12 +4,14 @@ import { Model , Types } from 'mongoose';
 import { Product, ProductDocument } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { Stock, StockDocument } from '../stock/schema/stock.schema';
 
 @Injectable()
 export class ProductsService {
   // Inyectamos el modelo de Product para interactuar con MongoDB.
   constructor(
-    @InjectModel(Product.name) private productModel: Model<ProductDocument>
+    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(Stock.name) private stockModel: Model<StockDocument>
   ) {}
 
   // Crea un nuevo producto a partir de los datos del DTO.
@@ -108,6 +110,62 @@ export class ProductsService {
         throw error;
       }
       throw new InternalServerErrorException('Error al eliminar el producto');
+    }
+  }
+
+  // Obtiene estadísticas de productos
+  async getProductStatistics(): Promise<any> {
+    try {
+      console.log('Inicio del método getProductStatistics mejorado');
+
+      // Estadísticas básicas
+      const totalProducts = await this.productModel.countDocuments().exec();
+      const activeProducts = await this.productModel.countDocuments({ status: 'activo' }).exec();
+      const lowStockProducts = await this.productModel.countDocuments({
+        $expr: { $lt: ["$stock", "$minStock"] }
+      }).exec();
+
+      // Valor total del inventario
+      const inventoryValueResult = await this.productModel.aggregate([
+        { $match: { status: 'activo' } },
+        { $group: {
+          _id: null,
+          totalValue: { $sum: { $multiply: ["$price", "$stock"] } }
+        }}
+      ]).exec();
+
+      const inventoryValue = inventoryValueResult.length > 0 ?
+        parseFloat(inventoryValueResult[0].totalValue.toFixed(2)) : 0;
+
+      // Productos por categoría
+      const productsByCategory = await this.productModel.aggregate([
+        { $group: {
+          _id: "$category",
+          count: { $sum: 1 }
+        }},
+        { $sort: { count: -1 } },
+        { $limit: 5 }
+      ]).exec();
+
+      // Construir un resultado completo
+      return {
+        summary: {
+          totalProducts,
+          activeProducts,
+          lowStockProducts,
+          percentActiveProducts: totalProducts > 0 ?
+            parseFloat(((activeProducts / totalProducts) * 100).toFixed(2)) : 0,
+          inventoryValue
+        },
+        categoryDistribution: productsByCategory.map(item => ({
+          category: item._id,
+          count: item.count,
+          percentage: parseFloat(((item.count / totalProducts) * 100).toFixed(2))
+        }))
+      };
+    } catch (error) {
+      console.error('Error al obtener estadísticas de productos:', error);
+      throw new InternalServerErrorException('Error al obtener estadísticas de productos');
     }
   }
 }

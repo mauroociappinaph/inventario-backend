@@ -28,9 +28,16 @@ async function bootstrap() {
 
   // Habilitar CORS para desarrollo
   app.enableCors({
-    origin: true, // Permitir solicitudes desde cualquier origen en desarrollo
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      process.env.FRONTEND_URL
+    ].filter(Boolean), // Filtrar valores null o undefined
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
+    allowedHeaders: 'Content-Type,Authorization,Accept',
+    maxAge: 3600, // 1 hora de caché para respuestas preflight
   });
 
   // Configuración de compresión

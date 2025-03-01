@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -21,7 +21,7 @@ export class AuthService {
         email: createUserDto.email,
       });
       if (existingUser) {
-        throw new Error('El usuario ya existe');
+        throw new ConflictException('El usuario ya existe con ese correo electrónico');
       }
 
       // Hasheamos la contraseña usando bcrypt (número de salt rounds: 10).
@@ -37,11 +37,16 @@ export class AuthService {
       return await newUser.save();
     } catch (error) {
       // Verificamos que error es de tipo Error
-      if (error instanceof Error) {
+      if (error instanceof ConflictException) {
         throw error;
       }
+
+      if (error.code === 11000) {
+        throw new ConflictException('El correo electrónico ya está registrado');
+      }
+
       // En caso de error desconocido, lanzamos un nuevo error
-      throw new Error('Error inesperado en el registro');
+      throw new BadRequestException('Error en el registro: ' + (error.message || 'Error desconocido'));
     }
   }
 
@@ -50,13 +55,18 @@ export class AuthService {
       // Buscamos el usuario por email.
       const user = await this.userModel.findOne({ email: loginUserDto.email });
       if (!user) {
-        throw new UnauthorizedException('Credenciales inválidas');
+        throw new UnauthorizedException('No existe un usuario con este correo electrónico');
       }
 
       // Comparamos la contraseña ingresada con la contraseña hasheada en la base de datos.
       const isMatch = await bcrypt.compare(loginUserDto.password, user.password);
       if (!isMatch) {
-        throw new UnauthorizedException('Credenciales inválidas');
+        throw new UnauthorizedException('Contraseña incorrecta');
+      }
+
+      // Verificar el estado del usuario
+      if (user.status !== 'active') {
+        throw new UnauthorizedException('La cuenta está inactiva o bloqueada. Contacte al administrador.');
       }
 
       // Si la validación es correcta, generamos un token JWT con información del usuario.
@@ -70,10 +80,10 @@ export class AuthService {
       return { token };
     } catch (error) {
       // Validamos el tipo de error antes de usarlo
-      if (error instanceof Error) {
+      if (error instanceof UnauthorizedException) {
         throw error;
       }
-      throw new Error('Error inesperado en el login');
+      throw new UnauthorizedException('Error de autenticación: ' + (error.message || 'Error desconocido'));
     }
   }
 }

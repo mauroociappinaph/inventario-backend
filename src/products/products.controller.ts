@@ -43,12 +43,35 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
+  // Cambiamos el endpoint de estadísticas para usar una ruta diferente
+  @Get('stats')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obtiene estadísticas detalladas de productos' })
+  @ApiResponse({
+    status: 200,
+    description: 'Estadísticas de productos obtenidas correctamente'
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'No autorizado - Se requiere autenticación'
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Error interno del servidor'
+  })
+  getStatistics() {
+    console.log('Endpoint de estadísticas de productos ejecutado');
+    return this.productsService.getProductStatistics();
+  }
+
   @ApiOperation({ summary: 'Obtener un producto por ID' })
   @ApiParam({ name: 'id', description: 'ID del producto' })
   @ApiResponse({ status: 200, description: 'Producto encontrado' })
   @ApiResponse({ status: 404, description: 'Producto no encontrado' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
+    console.log(`Endpoint de producto por ID ejecutado con ID: ${id}`);
     return this.productsService.findOne(id);
   }
 
