@@ -1,9 +1,11 @@
 import { IsString, IsOptional, IsNumber, Min, IsDate, ValidateIf } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateProductDto } from './create-product.dto';
 
 // Este DTO define los campos que se pueden actualizar de un producto.
 // Todos los campos son opcionales para permitir actualizar solo los necesarios.
-export class UpdateProductDto {
+export class UpdateProductDto extends PartialType(CreateProductDto) {
   @IsOptional()
   @IsString({ message: 'El nombre debe ser una cadena de texto' })
   @Transform(({ value }) => value?.trim())
@@ -46,4 +48,8 @@ export class UpdateProductDto {
   @IsString({ message: 'La subcategoría debe ser una cadena de texto' })
   @Transform(({ value }) => value?.trim())
   readonly subCategory?: string;
+
+  @IsOptional()
+  @IsDate()
+  lastStockUpdate?: Date;
 }

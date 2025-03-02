@@ -1,10 +1,9 @@
 import { Types } from 'mongoose';
-import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, IsDate, IsMongoId, ValidateIf } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, IsDate, IsMongoId } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // Define la estructura de datos necesaria para crear un nuevo producto.
-// Estos campos corresponden a los definidos en el esquema.`
 export class CreateProductDto {
   // Nombre del producto (requerido)
   @ApiProperty({
@@ -16,16 +15,6 @@ export class CreateProductDto {
   @IsNotEmpty({ message: 'El nombre es requerido' })
   @Transform(({ value }) => value?.trim())
   readonly name: string;
-
-  // Descripción del producto (opcional)
-  @ApiPropertyOptional({
-    description: 'Descripción detallada del producto',
-    example: 'Laptop HP Pavilion con procesador Intel Core i7, 16GB RAM'
-  })
-  @IsOptional()
-  @IsString({ message: 'La descripción debe ser una cadena de texto' })
-  @Transform(({ value }) => value?.trim())
-  readonly description?: string;
 
   // Precio del producto (requerido, no negativo)
   @ApiProperty({
@@ -49,7 +38,18 @@ export class CreateProductDto {
   @Type(() => Number)
   readonly stock: number;
 
-  // Fecha de entrada al inventario
+  // Stock mínimo para alertas.
+  @ApiProperty({
+    description: 'Stock mínimo para alertas',
+    example: 5,
+    minimum: 0
+  })
+  @IsNumber({}, { message: 'El stock mínimo debe ser un número' })
+  @Min(0, { message: 'El stock mínimo no puede ser negativo' })
+  @Type(() => Number)
+  readonly minStock: number;
+
+  // Fecha de entrada al inventario.
   @ApiProperty({
     description: 'Fecha de entrada al inventario',
     example: '2024-03-01T12:00:00Z'
@@ -58,18 +58,7 @@ export class CreateProductDto {
   @Type(() => Date)
   readonly entryDate: Date;
 
-  // Fecha de expiración o caducidad (opcional)
-  @ApiPropertyOptional({
-    description: 'Fecha de expiración/caducidad del producto (si aplica)',
-    example: '2025-03-01T12:00:00Z'
-  })
-  @IsOptional()
-  @IsDate({ message: 'La fecha de caducidad debe ser una fecha válida' })
-  @ValidateIf((o) => o.expirationDate !== null && o.expirationDate !== undefined)
-  @Type(() => Date)
-  readonly expirationDate?: Date;
-
-  // Categoría del producto (opcional)
+  // Categoría del producto (opcional).
   @ApiPropertyOptional({
     description: 'Categoría principal del producto',
     example: 'Electrónica'
@@ -79,17 +68,45 @@ export class CreateProductDto {
   @Transform(({ value }) => value?.trim())
   readonly category?: string;
 
-  // Subcategoría del producto (opcional)
+  // ID de la categoría (opcional).
   @ApiPropertyOptional({
-    description: 'Subcategoría del producto',
-    example: 'Laptops'
+    description: 'ID de la categoría del producto',
+    example: '65e5f12c1d35b1e1f3a5b3f1'
   })
   @IsOptional()
-  @IsString({ message: 'La subcategoría debe ser una cadena de texto' })
-  @Transform(({ value }) => value?.trim())
-  readonly subCategory?: string;
+  @IsMongoId({ message: 'El ID de categoría debe ser un ID de MongoDB válido' })
+  readonly categoryId?: Types.ObjectId;
 
-  // ID del usuario que crea el producto
+  // Nombre del proveedor (opcional).
+  @ApiPropertyOptional({
+    description: 'Nombre del proveedor',
+    example: 'Proveedor XYZ'
+  })
+  @IsOptional()
+  @IsString({ message: 'El nombre del proveedor debe ser una cadena de texto' })
+  @Transform(({ value }) => value?.trim())
+  readonly supplier?: string;
+
+  // ID del proveedor (opcional).
+  @ApiPropertyOptional({
+    description: 'ID del proveedor del producto',
+    example: '65e5f12c1d35b1e1f3a5b3f2'
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'El ID de proveedor debe ser un ID de MongoDB válido' })
+  readonly supplierId?: Types.ObjectId;
+
+  // Fecha de la última actualización de stock (opcional).
+  @ApiPropertyOptional({
+    description: 'Fecha de la última actualización de stock',
+    example: '2024-03-05T12:00:00Z'
+  })
+  @IsOptional()
+  @IsDate({ message: 'La fecha de la última actualización debe ser una fecha válida' })
+  @Type(() => Date)
+  readonly lastStockUpdate?: Date;
+
+  // ID del usuario que crea el producto (requerido).
   @ApiProperty({
     description: 'ID del usuario que registra el producto',
     example: '65e5f12c1d35b1e1f3a5b3f1'
