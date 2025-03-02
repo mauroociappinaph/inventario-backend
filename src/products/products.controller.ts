@@ -27,6 +27,8 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() createProductDto: CreateProductDto, @Req() req: AuthenticatedRequest) {
+    console.log('Datos recibidos:', JSON.stringify(createProductDto, null, 2));
+    console.log('Usuario:', JSON.stringify(req.user, null, 2));
     // Extrae el usuario autenticado (proporcionado por la estrategia JWT)
     const user = req.user;
     // Se agrega el ID del usuario al DTO para asociarlo al producto

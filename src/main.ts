@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, BadRequestException } from '@nestjs/common';
 import { HttpExceptionFilter, ValidationExceptionFilter } from './common/filters';
 import { CacheInterceptor, LoggingInterceptor, TimeoutInterceptor, TransformInterceptor } from './common/interceptors';
 import * as helmet from 'helmet';
@@ -16,9 +16,28 @@ async function bootstrap() {
   // Configuración global de pipes
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Elimina propiedades no decoradas
-      forbidNonWhitelisted: true, // Rechaza datos con propiedades no decoradas
-      transform: true, // Transforma automáticamente los datos recibidos a los tipos especificados
+      whitelist: false,
+      forbidNonWhitelisted: false,
+      transform: true,
+      enableDebugMessages: true,
+      validationError: { target: true, value: true },
+      stopAtFirstError: false,
+      exceptionFactory: (errors) => {
+        console.log('Errores de validación:', JSON.stringify(errors, null, 2));
+        const formattedErrors = errors.reduce((acc, err) => {
+          acc[err.property] = {
+            value: err.value,
+            constraints: err.constraints,
+            children: err.children
+          };
+          return acc;
+        }, {});
+        return new BadRequestException({
+          message: 'Error de validación',
+          errors: formattedErrors,
+          timestamp: new Date().toISOString()
+        });
+      },
     }),
   );
 

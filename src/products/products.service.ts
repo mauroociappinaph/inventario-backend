@@ -15,6 +15,7 @@ export class ProductsService {
   // Crea un nuevo product o a partir de los datos del DTO.
   async create(createProductDto: CreateProductDto): Promise<Product> {
     try {
+      console.log('Datos recibidos en el servicio:', JSON.stringify(createProductDto, null, 2));
       // Validar que el stock inicial no sea negativo
       if (createProductDto.stock < 0) {
         throw new BadRequestException('El stock inicial no puede ser negativo');
@@ -24,9 +25,12 @@ export class ProductsService {
         ...createProductDto,
         lastStockUpdate: new Date()
       });
+      console.log('Producto a crear:', JSON.stringify(newProduct, null, 2));
       return await newProduct.save();
     } catch (error) {
+      console.error('Error al crear producto:', error);
       if (error.name === 'ValidationError') {
+        console.error('Detalles del error de validación:', JSON.stringify(error.errors, null, 2));
         throw new BadRequestException('Datos del producto inválidos');
       }
       throw new InternalServerErrorException('Error al crear el producto');
