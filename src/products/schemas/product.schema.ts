@@ -29,6 +29,10 @@ export class Product {
   @Prop({ default: Date.now })
   entryDate: Date;
 
+  // Fecha de salida del producto, con valor por defecto.
+  @Prop({ default: null })
+  exitDate: Date;
+
   // Referencia a la categoría.
   @Prop({ type: Types.ObjectId, ref: 'Category' })
   categoryId: Types.ObjectId;
