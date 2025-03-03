@@ -17,6 +17,16 @@ export class Product {
   })
   price: number;
 
+  // Costo del producto, usado para cálculos de ROI.
+  @Prop({
+    min: [0, 'El costo no puede ser negativo'],
+    default: function() {
+      // Por defecto, el costo es el 50% del precio si no se especifica
+      return this.price ? this.price * 0.5 : 0;
+    }
+  })
+  cost: number;
+
   // Stock general, requerido y no negativo.
   @Prop({ required: true, min: 0 })
   stock: number;

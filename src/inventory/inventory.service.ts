@@ -1,11 +1,11 @@
-import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Inventory, InventoryDocument } from './schemas/inventory.schema';
+import { Product, ProductDocument } from '../products/schemas/product.schema';
+import { Stock, StockDocument } from '../stock/schema/stock.schema';
 import { CreateInventoryDto } from './dto/create-inventory.dto';
 import { UpdateInventoryDto } from './dto/update-inventory.dto';
-import { Stock, StockDocument } from '../stock/schema/stock.schema';
-import { Product, ProductDocument } from '../products/schemas/product.schema';
+import { Inventory, InventoryDocument } from './schemas/inventory.schema';
 
 @Injectable()
 export class InventoryService {
@@ -79,9 +79,10 @@ export class InventoryService {
   }
 
   // Obtiene estadísticas de inventario
-  async getInventoryStatistics(): Promise<any> {
+  async getInventoryStatistics(userId?: string): Promise<any> {
     try {
       console.log('Iniciando cálculo de estadísticas de inventario mejoradas');
+      console.log('ID de usuario para filtrar:', userId || 'No se especificó (mostrando todos)');
 
       // Fechas para análisis de tendencias
       const currentDate = new Date();
@@ -90,6 +91,10 @@ export class InventoryService {
 
       const sixtyDaysAgo = new Date(currentDate);
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+      // Crear el filtro de usuario si se especificó
+      const userFilter = userId ? { userId: new Types.ObjectId(userId) } : {};
+      console.log('Filtro de usuario aplicado:', userFilter);
 
       // Obtener estadísticas básicas
       const [
@@ -133,7 +138,8 @@ export class InventoryService {
       const movementStats = await this.inventoryModel.aggregate([
         {
           $match: {
-            date: { $gte: thirtyDaysAgo }
+            date: { $gte: thirtyDaysAgo },
+            ...userFilter
           }
         },
         {
@@ -160,6 +166,102 @@ export class InventoryService {
         }
       ]).exec();
 
+      // Cálculo del ROI promedio
+      console.log('[InventoryService] 🔍 Iniciando cálculo de ROI con datos de los últimos 30 días');
+      console.log('[InventoryService] 📅 Fecha de inicio para cálculo de ROI:', thirtyDaysAgo);
+      console.log('[InventoryService] 👤 Filtro de usuario para ROI:', userFilter);
+
+      const roiData = await this.inventoryModel.aggregate([
+        {
+          $match: {
+            type: 'salida',
+            date: { $gte: thirtyDaysAgo },
+            ...userFilter
+          }
+        },
+        {
+          $lookup: {
+            from: 'products',
+            localField: 'productId',
+            foreignField: '_id',
+            as: 'productInfo'
+          }
+        },
+        { $unwind: '$productInfo' },
+        {
+          $group: {
+            _id: '$productId',
+            productName: { $first: '$productInfo.name' },
+            totalSalidas: { $sum: '$quantity' },
+            totalValorSalidas: {
+              $sum: {
+                $multiply: ['$quantity', '$productInfo.price']
+              }
+            },
+            costoPromedio: { $first: { $ifNull: ['$productInfo.cost', { $multiply: ['$productInfo.price', 0.5] }] } }
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            productName: 1,
+            totalSalidas: 1,
+            totalValorSalidas: 1,
+            costoPromedio: 1,
+            roi: {
+              $cond: [
+                { $gt: ['$costoPromedio', 0] },
+                {
+                  $multiply: [
+                    {
+                      $divide: [
+                        { $subtract: ['$totalValorSalidas', { $multiply: ['$totalSalidas', '$costoPromedio'] }] },
+                        { $multiply: ['$totalSalidas', '$costoPromedio'] }
+                      ]
+                    },
+                    100
+                  ]
+                },
+                0
+              ]
+            }
+          }
+        }
+      ]).exec();
+
+      console.log('[InventoryService] 📊 Resultados de la agregación para ROI:', JSON.stringify(roiData, null, 2));
+      console.log('[InventoryService] 🔢 Número de productos con datos para ROI:', roiData.length);
+
+      // Calcular ROI promedio de todos los productos
+      let avgRoi = 0;
+      if (roiData.length > 0) {
+        const totalRoi = roiData.reduce((sum, product) => sum + product.roi, 0);
+        console.log('[InventoryService] 📈 Suma total de ROI de todos los productos:', totalRoi);
+        avgRoi = totalRoi / roiData.length;
+        console.log('[InventoryService] 📈 ROI promedio calculado:', avgRoi);
+      } else {
+        console.warn('[InventoryService] ⚠️ No hay datos suficientes para calcular el ROI');
+      }
+
+      // Si no tenemos datos de ROI, verificamos si hay movimientos en general
+      const totalMovementsCount = await this.inventoryModel.countDocuments(userFilter);
+      console.log('[InventoryService] 📦 Total de movimientos en el sistema (con filtro):', totalMovementsCount);
+
+      const salesMovementsCount = await this.inventoryModel.countDocuments({
+        type: 'salida',
+        ...userFilter
+      });
+      console.log('[InventoryService] 🛒 Total de movimientos de salida (con filtro):', salesMovementsCount);
+
+      // Ordenar productos por ROI para obtener los de mejor desempeño
+      roiData.sort((a, b) => b.roi - a.roi);
+      const topRoiProducts = roiData.slice(0, 5); // Tomar los 5 mejores
+
+      if (topRoiProducts.length > 0) {
+        console.log('[InventoryService] 🏆 Productos con mejor ROI:',
+          topRoiProducts.map(p => `${p.productName}: ${p.roi.toFixed(2)}%`).join(', '));
+      }
+
       // Obtener datos del período anterior para comparación (31-60 días atrás)
       const previousPeriodStats = await this.inventoryModel.aggregate([
         {
@@ -167,7 +269,8 @@ export class InventoryService {
             date: {
               $gte: sixtyDaysAgo,
               $lt: thirtyDaysAgo
-            }
+            },
+            ...userFilter
           }
         },
         {
@@ -193,7 +296,8 @@ export class InventoryService {
       const topMovedProducts = await this.inventoryModel.aggregate([
         {
           $match: {
-            date: { $gte: thirtyDaysAgo }
+            date: { $gte: thirtyDaysAgo },
+            ...userFilter
           }
         },
         {
@@ -223,13 +327,11 @@ export class InventoryService {
         { $unwind: '$productInfo' },
         {
           $project: {
-            productId: '$_id',
+            _id: 1,
             productName: '$productInfo.name',
             totalQuantity: 1,
             entriesCount: 1,
-            exitsCount: 1,
-            // Calcular tasa de salida diaria
-            dailyExitRate: { $divide: ['$exitsCount', 30] }
+            exitsCount: 1
           }
         },
         { $sort: { totalQuantity: -1 } },
@@ -408,6 +510,10 @@ export class InventoryService {
         stockByCategory,
         predictions: {
           upcomingReorders: reorderPrediction
+        },
+        roi: {
+          avgRoi,
+          topRoiProducts: topRoiProducts
         }
       };
     } catch (error) {

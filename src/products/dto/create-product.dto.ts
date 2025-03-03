@@ -1,7 +1,7 @@
-import { Types } from 'mongoose';
-import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, IsDate, IsMongoId } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
+import { IsDate, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { Types } from 'mongoose';
 
 // Define la estructura de datos necesaria para crear un nuevo producto.
 export class CreateProductDto {
@@ -26,6 +26,18 @@ export class CreateProductDto {
   @Min(0, { message: 'El precio no puede ser negativo' })
   @Type(() => Number)
   readonly price: number;
+
+  // Costo del producto (opcional, no negativo)
+  @ApiPropertyOptional({
+    description: 'Costo de adquisición del producto (para cálculo de ROI)',
+    example: 599.99,
+    minimum: 0
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'El costo debe ser un número' })
+  @Min(0, { message: 'El costo no puede ser negativo' })
+  @Type(() => Number)
+  readonly cost?: number;
 
   // Stock disponible (requerido, entero y no negativo)
   @ApiProperty({

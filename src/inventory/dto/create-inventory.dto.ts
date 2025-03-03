@@ -1,6 +1,6 @@
-import { Types } from 'mongoose';
-import { IsNotEmpty, IsNumber, Min, IsEnum, IsDate, IsMongoId, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsDate, IsEnum, IsMongoId, IsNotEmpty, IsNumber, Min } from 'class-validator';
+import { Types } from 'mongoose';
 
 // Define la estructura de datos necesaria para registrar un movimiento de inventario.
 export class CreateInventoryDto {
