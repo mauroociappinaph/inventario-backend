@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // Protege los endpoints con autenticación
 import { CreateInventoryDto } from './dto/create-inventory.dto';
@@ -19,7 +19,30 @@ export class InventoryController {
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() createInventoryDto: CreateInventoryDto) {
-    return this.inventoryService.create(createInventoryDto);
+    try {
+      console.log('[InventoryController] 📥 Recibiendo solicitud de nuevo movimiento:', createInventoryDto);
+
+      const result = await this.inventoryService.create(createInventoryDto);
+
+      console.log('[InventoryController] ✅ Movimiento registrado:', result);
+
+      return {
+        status: 'success',
+        message: 'Movimiento registrado exitosamente',
+        data: result
+      };
+    } catch (error) {
+      console.error('[InventoryController] ❌ Error al registrar movimiento:', error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException({
+        status: 'error',
+        message: error.message || 'Error al registrar movimiento',
+      }, HttpStatus.BAD_REQUEST);
+    }
   }
 
   // Obtiene todos los movimientos de inventario con el nombre del producto asociado.
@@ -27,7 +50,24 @@ export class InventoryController {
   @ApiResponse({ status: 200, description: 'Listado de movimientos de inventario' })
   @Get()
   async findAll() {
-    return this.inventoryService.findAll();
+    try {
+      console.log('[InventoryController] 📊 Solicitando lista de movimientos');
+
+      const movements = await this.inventoryService.findAll();
+
+      console.log('[InventoryController] ✅ Movimientos obtenidos:', movements.length);
+
+      return {
+        status: 'success',
+        data: movements
+      };
+    } catch (error) {
+      console.error('[InventoryController] ❌ Error al obtener movimientos:', error);
+      throw new HttpException({
+        status: 'error',
+        message: 'Error al obtener movimientos',
+      }, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   // Obtiene estadísticas detalladas del inventario.
@@ -38,9 +78,17 @@ export class InventoryController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('statistics')
-  getStatistics(@Request() req) {
-    console.log('[InventoryController] 📊 Usuario:', req.user?.userId);
-    return this.inventoryService.getInventoryStatistics(req.user?.userId);
+  async getStatistics(@Request() req) {
+    console.log('[InventoryController] 📊 Usuario solicitando estadísticas:', req.user?.userId);
+
+    try {
+      const stats = await this.inventoryService.getInventoryStatistics(req.user?.userId);
+      console.log('[InventoryController] ✅ Estadísticas obtenidas:', stats);
+      return stats;
+    } catch (error) {
+      console.error('[InventoryController] ❌ Error obteniendo estadísticas:', error);
+      throw error;
+    }
   }
 
   // Obtiene estadísticas específicas de ROI.
@@ -52,9 +100,11 @@ export class InventoryController {
   @UseGuards(JwtAuthGuard)
   @Get('statistics/roi')
   async getRoiStatistics(@Request() req) {
-    console.log('[InventoryController] 📊 Solicitud de ROI recibida de:', req.user?.userId);
+    console.log('[InventoryController] 📊 Usuario solicitando ROI:', req.user?.userId);
+
     try {
       const stats = await this.inventoryService.getInventoryStatistics(req.user?.userId);
+      console.log('[InventoryController] ✅ ROI obtenido:', stats.roi);
       return { roi: stats.roi || { avgRoi: 0, topRoiProducts: [] } };
     } catch (error) {
       console.error('[InventoryController] ❌ Error obteniendo ROI:', error);
@@ -68,7 +118,16 @@ export class InventoryController {
   @ApiResponse({ status: 404, description: 'Movimiento no encontrado' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return this.inventoryService.findOne(id);
+    console.log('[InventoryController] 🔍 Buscando movimiento con ID:', id);
+
+    try {
+      const result = await this.inventoryService.findOne(id);
+      console.log('[InventoryController] ✅ Movimiento encontrado:', result);
+      return result;
+    } catch (error) {
+      console.error('[InventoryController] ❌ Error al obtener movimiento:', error);
+      throw error;
+    }
   }
 
   // Actualiza un movimiento existente en el inventario.
@@ -81,7 +140,16 @@ export class InventoryController {
   @UseGuards(JwtAuthGuard)
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateInventoryDto: UpdateInventoryDto) {
-    return this.inventoryService.update(id, updateInventoryDto);
+    console.log('[InventoryController] 🔄 Actualizando movimiento con ID:', id, 'Nuevos datos:', updateInventoryDto);
+
+    try {
+      const result = await this.inventoryService.update(id, updateInventoryDto);
+      console.log('[InventoryController] ✅ Movimiento actualizado:', result);
+      return result;
+    } catch (error) {
+      console.error('[InventoryController] ❌ Error al actualizar movimiento:', error);
+      throw error;
+    }
   }
 
   // Elimina un movimiento de inventario.
@@ -93,6 +161,39 @@ export class InventoryController {
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    return this.inventoryService.remove(id);
+    console.log('[InventoryController] 🗑️ Eliminando movimiento con ID:', id);
+
+    try {
+      const result = await this.inventoryService.remove(id);
+      console.log('[InventoryController] ✅ Movimiento eliminado:', result);
+      return result;
+    } catch (error) {
+      console.error('[InventoryController] ❌ Error al eliminar movimiento:', error);
+      throw error;
+    }
+  }
+
+  @ApiOperation({ summary: 'Obtener movimientos por ID de producto' })
+  @ApiResponse({ status: 200, description: 'Movimientos encontrados' })
+  @Get('product/:productId')
+  async findByProductId(@Param('productId') productId: string) {
+    try {
+      console.log('[InventoryController] 🔍 Buscando movimientos del producto:', productId);
+
+      const movements = await this.inventoryService.findByProductId(productId);
+
+      console.log('[InventoryController] ✅ Movimientos encontrados:', movements.length);
+
+      return {
+        status: 'success',
+        data: movements
+      };
+    } catch (error) {
+      console.error('[InventoryController] ❌ Error al obtener movimientos del producto:', error);
+      throw new HttpException({
+        status: 'error',
+        message: error.message || 'Error al obtener movimientos del producto',
+      }, HttpStatus.BAD_REQUEST);
+    }
   }
 }

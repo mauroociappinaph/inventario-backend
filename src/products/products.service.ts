@@ -1,18 +1,38 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { CategoriesService } from '../categories/categories.service';
+import { Category } from '../categories/schemas/category.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductDocument } from './schemas/product.schema';
 
 @Injectable()
 export class ProductsService {
-  constructor(@InjectModel(Product.name) private productModel: Model<ProductDocument>) {}
+  constructor(
+    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    private readonly categoriesService: CategoriesService
+  ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     try {
       if (createProductDto.stock < 0) {
         throw new BadRequestException('El stock inicial no puede ser negativo');
+      }
+
+      // Si se proporciona el nombre de la categoría en lugar del ID, crear la categoría
+      if (createProductDto.category && !createProductDto.categoryId) {
+        const newCategory: Category = await this.categoriesService.create({
+          name: createProductDto.category
+        });
+        const productData = { ...createProductDto };
+        delete productData.category;
+        const newProduct = new this.productModel({
+          ...productData,
+          categoryId: (newCategory as any)._id,
+          lastStockUpdate: new Date()
+        });
+        return await newProduct.save();
       }
 
       const newProduct = new this.productModel({
@@ -21,6 +41,9 @@ export class ProductsService {
       });
       return await newProduct.save();
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new InternalServerErrorException('Error al crear el producto');
     }
   }
