@@ -1,11 +1,11 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { InjectModel } from '@nestjs/mongoose';
+import * as bcrypt from 'bcrypt';
+import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
-import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
 
 // Interfaz para la respuesta de usuario sin contraseña
 export interface UserResponse {
@@ -23,6 +23,14 @@ export interface UserResponse {
 export interface AuthResponse {
   token: string;
   user?: UserResponse;
+}
+
+// Interfaz para el payload del JWT
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  roles: string[];
+  // Otros campos que puedan estar en el payload
 }
 
 @Injectable()
@@ -137,6 +145,52 @@ export class AuthService {
       }
       this.logger.error(`Error de autenticación: ${error.message || 'Error desconocido'}`, error.stack);
       throw new UnauthorizedException('Error de autenticación: ' + (error.message || 'Error desconocido'));
+    }
+  }
+
+  /**
+   * Genera un nuevo token JWT para el usuario basado en su payload actual
+   * @param payload El payload del token JWT actual
+   * @returns Un nuevo token JWT y los datos del usuario
+   */
+  async refreshToken(payload: JwtPayload): Promise<AuthResponse> {
+    try {
+      this.logger.debug(`Refrescando token para usuario ID: ${payload.sub}`);
+
+      // Buscar el usuario por su ID para verificar que sigue existiendo y está activo
+      const user = await this.userModel.findById(payload.sub);
+
+      if (!user) {
+        this.logger.warn(`Usuario no encontrado para ID: ${payload.sub}`);
+        throw new UnauthorizedException('Usuario no encontrado');
+      }
+
+      // Verificar el estado del usuario
+      if (user.status !== 'active') {
+        this.logger.warn(`Intento de refresh con cuenta no activa: ${user.email}, estado: ${user.status}`);
+        throw new UnauthorizedException('La cuenta está inactiva o bloqueada');
+      }
+
+      // Generar un nuevo token JWT con la misma información
+      this.logger.debug('Generando nuevo token JWT...');
+      const newPayload = { sub: user._id, email: user.email, roles: user.roles };
+      const token = this.jwtService.sign(newPayload);
+      this.logger.debug('Nuevo token JWT generado exitosamente');
+
+      // Extraer el usuario sin la contraseña
+      const userObj = user.toObject();
+      const { password, ...userWithoutPassword } = userObj;
+
+      return {
+        token,
+        user: userWithoutPassword as UserResponse
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      this.logger.error(`Error al refrescar token: ${error.message || 'Error desconocido'}`, error.stack);
+      throw new UnauthorizedException('Error al refrescar token: ' + (error.message || 'Error desconocido'));
     }
   }
 }

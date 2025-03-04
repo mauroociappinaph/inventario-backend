@@ -1,9 +1,10 @@
-import { Controller, Post, Body, UseGuards, HttpStatus, HttpCode, ValidationPipe, BadRequestException, UnauthorizedException, Logger } from '@nestjs/common';
-import { AuthService, AuthResponse } from './auth.service';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Logger, Post, Request, UnauthorizedException, UseGuards, ValidationPipe } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { LoginThrottlerGuard } from '../common/guards/throttle.guard';
+import { AuthResponse, AuthService } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { LoginThrottlerGuard } from '../common/guards/throttle.guard';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('Autenticación')
 @Controller('auth')
@@ -95,6 +96,42 @@ export class AuthController {
       throw new UnauthorizedException({
         statusCode: HttpStatus.UNAUTHORIZED,
         message: error.message || 'Credenciales inválidas',
+        error: 'Unauthorized',
+      });
+    }
+  }
+
+  // Endpoint para renovar el token JWT
+  @Get('refresh-token')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Renovar token de autenticación' })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: 'Token renovado exitosamente' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  async refreshToken(@Request() req): Promise<{
+    statusCode: number;
+    message: string;
+    data: AuthResponse;
+  }> {
+    try {
+      // El usuario ya está verificado por el JwtAuthGuard
+      this.logger.log(`Solicitud de renovación de token para usuario ID: ${req.user.sub}`);
+
+      // Llama al método refreshToken del servicio
+      const result = await this.authService.refreshToken(req.user);
+
+      this.logger.log(`Token renovado exitosamente para usuario ID: ${req.user.sub}`);
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Token renovado exitosamente',
+        data: result,
+      };
+    } catch (error) {
+      this.logger.error(`Error al renovar token: ${error.message}`, error.stack);
+      throw new UnauthorizedException({
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: error.message || 'Error al renovar token',
         error: 'Unauthorized',
       });
     }
