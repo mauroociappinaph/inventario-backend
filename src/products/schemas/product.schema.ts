@@ -39,25 +39,17 @@ export class Product {
   @Prop({ default: Date.now })
   entryDate: Date;
 
-  // Fecha de salida del producto, con valor por defecto.
+  // Fecha de salida del producto.
   @Prop({ default: null })
   exitDate: Date;
 
-  // Referencia a la categoría.
-  @Prop({ type: Types.ObjectId, ref: 'Category' })
+  // Referencia a la categoría (se elimina `category` como string)
+  @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
   categoryId: Types.ObjectId;
 
-  // Nombre de la categoría (redundante para facilitar búsquedas).
-  @Prop()
-  category: string;
-
-  // Referencia al proveedor principal.
+  // Referencia al proveedor principal (se elimina `supplier` como string)
   @Prop({ type: Types.ObjectId, ref: 'Supplier' })
   supplierId: Types.ObjectId;
-
-  // Nombre del proveedor (redundante para facilitar búsquedas).
-  @Prop()
-  supplier: string;
 
   // Fecha de la última actualización de stock.
   @Prop()

@@ -1,9 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
+// Define el tipo de documento para Supplier
 export type SupplierDocument = Supplier & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true }) // Agrega createdAt y updatedAt automáticamente
 export class Supplier {
   // Nombre del proveedor, requerido.
   @Prop({ required: true })
@@ -29,13 +30,13 @@ export class Supplier {
   @Prop()
   notes: string;
 
-  // Referencias a los IDs de productos que suministra este proveedor.
+  // Referencias a los productos que suministra este proveedor.
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }] })
   products: Types.ObjectId[];
 
-  // Categorías de productos que suministra este proveedor.
-  @Prop({ type: [String] })
-  categories: string[];
+  // 🔹 Cambiado: Ahora `categories` es un array de `ObjectId` referenciando `Category`
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }] })
+  categories: Types.ObjectId[];
 
   // Tiempo de entrega promedio en días.
   @Prop({ default: 7 })
